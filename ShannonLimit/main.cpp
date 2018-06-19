@@ -4,6 +4,7 @@
 using namespace std;
 using namespace chrono;
 
+// 積分計算クラス
 class Calc {
 
 private:
@@ -20,8 +21,9 @@ public:
 	
 };
 
+// 関数の処理時間計測用
 template<typename Function>
-double measureProcessTime(const Function f) {
+long long measureProcessTime(const Function f) {
 	auto start = high_resolution_clock::now();
 	f();
 	auto duration = duration_cast<milliseconds>(high_resolution_clock::now() - start).count();
@@ -29,6 +31,7 @@ double measureProcessTime(const Function f) {
 	return duration;
 }
 
+// メイン関数
 int main() {
 
 	double a, b; // 積分区間[a, b]
@@ -46,7 +49,7 @@ int main() {
 	return 0;
 }
 
-// 被積分関数
+// 被積分関数の定義
 double Calc::function(const double & x)
 {
 	double result = 2 * pow(x, 3) - pow(x, 2) + 4;
@@ -54,6 +57,7 @@ double Calc::function(const double & x)
 	return result;
 }
 
+// 積分計算
 void Calc::calcIntegral(const double & start, const double & end)
 {
 	// 1区間の幅を決定する
