@@ -1,101 +1,79 @@
-#include <iostream>
-#include <chrono>
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include <iostream> // コンソール描画用
+#define _USE_MATH_DEFINES // 円周率とネイピア数
+#include <math.h> // M_PI, M_E
+#include <fstream> // エクセル出力用
+#include <vector> // 可変配列
 
+// 名前空間の宣言
 using namespace std;
-using namespace chrono;
 
-// 積分計算クラス
-class Calc {
-
-private:
-	const int DIVISION_NUMBER = 100000;
-	double width; // 1区間の幅
-	double x; // x値
-	double alpha; // αの値
-	double f_o, f_e; // 奇数項の合計、偶数項の合計
-	double area; // 面積
-
-	double function(const double & x, const double & alpha);
-
-public:
-	void calcIntegral(const double & start, const double & end);
-	
-};
-
-// 関数の処理時間計測用
-template<typename Function>
-long long measureProcessTime(const Function f) {
-	auto start = high_resolution_clock::now();
-	f();
-	auto duration = duration_cast<milliseconds>(high_resolution_clock::now() - start).count();
-	cout << " time = " << duration << " ms " << endl;
-	return duration;
-}
+// 関数プロトタイプ宣言
+double function(const double & x, const double & alpha, const double & C, const int & M);
 
 // メイン関数
 int main() {
 
-	double a, b; // 積分区間[a, b]
+	const double a = -5;    // 積分開始点
+	const double b =  5;    // 積分終了点
+	const int    m =  1000; // 積分区間の分割数
+	int          M =  20;   // 信号点の個数
 
-	cout << "積分区間を入力してください" << endl;
-	cin >> a >> b; // a, b 入力
+	ofstream ofs; // ファイル入力用
+	ofs.open("shannon.csv", ios::out);
 
-	Calc c;
+	const double haba = (b - a) / m; // 微小区間を定義
+
+	double sigma{ 0.0 };
+	for (int k = 1; k <= M / 2; ++k) {
+		sigma += pow(double(2 * k - 1), 2);
+	}
+
+	double C = sqrt(M / (2 * sigma)); // 信号点間隔
+
+    // αは区間[0, 40]に設定
+	for (int alpha = 0; alpha <= 40; alpha += 2) {
 	
-	measureProcessTime([&] (void) {
-		c.calcIntegral(a, b);
-	});
+		double x{ 0.0 }; // 微小区間の左端
+		double menseki{ 0.0 };
+
+		// 台形公式で区分求積計算
+		for (int i = 0; i < m; i++) {
+			x = a + i * haba;
+			double x2 = x + haba; // 微小区間の右端
+			menseki += (haba * (function(x, alpha, C, M) + function(x2, alpha, C, M))) / 2;
+		}
+
+		double sigma2 = pow(10.0, (alpha / 10.0)*(-1)); // σの2乗の計算
+
+		double usiro = log2(2 * M_PI * sigma2 * M_E) / 2.0;
+		double capacity = - menseki - usiro;
+		
+		cout << capacity << " m^2" << endl;
+		
+		ofs << capacity << endl; // 結果格納
+	}
+
+	ofs.close(); // ファイルクローズ
 
 	system("pause");
 	return 0;
 }
 
-// 被積分関数の定義
-double Calc::function(const double & x, const double & alpha)
-{
-	double sigma2 = pow(10, (alpha / 10)*(-1));
-	double temp1 = exp(pow(x - 1, 2)*(-1) / (2 * sigma2));
-	double temp2 = exp(pow(x + 1, 2)*(-1) / (2 * sigma2));
-	double f_mix = (temp1 + temp2) / 2 * sqrt(2*M_PI*sigma2);
-	
-	return f_mix * log2(f_mix);
-}
+// 被積分関数 f_mix * log2(f_mix) の定義
+double function(const double & x, const double & alpha, const double & C, const int & M) {
 
-// 積分計算
-void Calc::calcIntegral(const double & start, const double & end)
-{
-	// 1区間の幅を決定する
-	width = (end - start) / (2 * DIVISION_NUMBER);
+	double sigma2 = pow(10.0, (alpha / 10.0)*(-1));
+	vector<double> v; // 信号点間距離の格納用配列
 
-	// 初期化
-	x = start;
-	alpha = 0;
-	f_o = f_e = 0.0;
-	area = 0.0;
-
-	// 奇数項の合計、偶数項の合計を計算する
-	for (int k = 1; k <= 2 * DIVISION_NUMBER - 2; k++) {
-		x += width;
-		alpha += 2;
-		if (k % 2 == 1) { // 奇数の場合
-			f_o += function(x, alpha);
-		}
-		else { // 偶数の場合
-			f_e += function(x, alpha);
-		}
+	for (int i = 1 - M; i <= M - 1; i += 2) {
+		v.push_back(i * C);
 	}
 
-	// 面積を計算する
-	area = function(start, alpha) + function(end, alpha);
-	area += 4 * (f_o + function(end - width, alpha)) + 2 * f_e;
-	area *= width / 3;
-	area *= -1;
-	area -= log2(2 * M_PI*pow(10, (-1)*alpha / 10)*M_E);
-
-	// 結果を表示する
-	cout << "(a, b) = (" << start << ", " << end << ") " << endl;
-	cout << "∫f(x)dx = " << area << endl;
-
+	double sum{ 0.0 }; // シグマ計算の結果格納用
+	for (auto & v : v) {
+		sum += exp(pow(x - v, 2)*(-1) / (2 * sigma2));
+	}
+	double f_mix = sum / (M * sqrt(2*M_PI*sigma2));
+	
+	return log2(pow(f_mix, f_mix));
 }
